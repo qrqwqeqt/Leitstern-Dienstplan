@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Weekly Schedule</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+    <div class="container mx-auto">
+        <h1 class="text-3xl font-bold mb-6 text-center">Weekly Schedule</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div id="availableNames" class="bg-white p-4 rounded shadow">
+                <h2 class="text-xl font-semibold mb-4">Available Names</h2>
+                <div id="nameList" class="space-y-2"></div>
+            </div>
+
+            <div class="md:col-span-2 bg-white p-4 rounded shadow">
+                <h2 class="text-xl font-semibold mb-4">Schedule</h2>
+                <div id="scheduleGrid" class="grid grid-cols-7 gap-2">
+                    <!-- Days will be dynamically populated -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        let currentSchedule = {};
+        let availableNames = [];
+
+        // Fetch initial data
+        async function initializeSchedule() {
+            try {
+                const [namesResponse, scheduleResponse] = await Promise.all([
+                    fetch('/names'),
+                    fetch('/schedule')
+                ]);
+
+                const names = await namesResponse.json();
+                const scheduleData = await scheduleResponse.json();
+
+                availableNames = Object.keys(names).filter(name => 
+                    !Object.values(scheduleData.schedule).flat().includes(name)
+                );
+
+                currentSchedule = scheduleData.schedule;
+                renderSchedule();
+                renderNameList();
+            } catch (error) {
+                console.error('Error initializing schedule:', error);
+            }
+        }
+
+        // Render schedule grid
+        function renderSchedule() {
+            const scheduleGrid = document.getElementById('scheduleGrid');
+            scheduleGrid.innerHTML = '';
+
+            // Create headers
+            days.forEach(day => {
+                const header = document.createElement('div');
+                header.textContent = day;
+                header.className = 'font-bold text-center bg-blue-100 p-2';
+                scheduleGrid.appendChild(header);
+            });
+
+            // Create day slots
+            days.forEach(day => {
+                const daySlot = document.createElement('div');
+                daySlot.id = `day-${day}`;
+                daySlot.className = 'border p-2 min-h-[100px] flex flex-col gap-2';
+                
+                // Populate with existing assignments
+                const dayAssignments = currentSchedule[day] || [];
+                dayAssignments.forEach(name => {
+                    const nameEl = createNameElement(name);
+                    daySlot.appendChild(nameEl);
+                });
+
+                scheduleGrid.appendChild(daySlot);
+            });
+        }
+
+        // Render available names list
+        function renderNameList() {
+            const nameList = document.getElementById('nameList');
+            nameList.innerHTML = '';
+
+            availableNames.forEach(name => {
+                const nameEl = createNameElement(name);
+                nameList.appendChild(nameEl);
+            });
+        }
+
+        // Create interactive name element
+        function createNameElement(name) {
+            const container = document.createElement('div');
+            container.className = 'flex items-center bg-blue-500 text-white p-2 rounded';
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = name;
+            nameSpan.className = 'flex-grow cursor-move';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            removeBtn.className = 'ml-2 text-white hover:text-red-300';
+            removeBtn.onclick = () => removeName(container, name);
+
+            container.appendChild(nameSpan);
+            container.appendChild(removeBtn);
+
+            // Make name draggable
+            container.draggable = true;
+            container.ondragstart = (e) => {
+                e.dataTransfer.setData('text/plain', name);
+                e.target.classList.add('opacity-50');
+            };
+            container.ondragend = (e) => {
+                e.target.classList.remove('opacity-50');
+            };
+
+            return container;
+        }
+
+        // Remove name from schedule or available list
+        function removeName(nameEl, name) {
+            const parentContainer = nameEl.parentNode;
+            parentContainer.removeChild(nameEl);
+
+            // If removed from schedule, add to available names
+            if (parentContainer.id.startsWith('day-')) {
+                const nameList = document.getElementById('nameList');
+                nameList.appendChild(createNameElement(name));
+                updateSchedule();
+            }
+        }
+
+        // Setup drop zones
+        function setupDropZones() {
+            const daySlots = document.querySelectorAll('[id^="day-"]');
+            daySlots.forEach(slot => {
+                slot.ondragover = (e) => {
+                    e.preventDefault();
+                    slot.classList.add('bg-blue-100');
+                };
+                slot.ondragleave = (e) => {
+                    slot.classList.remove('bg-blue-100');
+                };
+                slot.ondrop = (e) => {
+                    e.preventDefault();
+                    slot.classList.remove('bg-blue-100');
+                    
+                    const name = e.dataTransfer.getData('text/plain');
+                    const nameList = document.getElementById('nameList');
+                    const nameEl = Array.from(nameList.children)
+                        .find(el => el.textContent.includes(name));
+
+                    if (nameEl) {
+                        nameList.removeChild(nameEl);
+                        slot.appendChild(nameEl);
+                        updateSchedule();
+                    }
+                };
+            });
+        }
+
+        // Update schedule on backend
+        async function updateSchedule() {
+            const newSchedule = {};
+            days.forEach(day => {
+                const daySlot = document.getElementById(`day-${day}`);
+                newSchedule[day] = Array.from(daySlot.children)
+                    .map(el => el.textContent.replace('×', '').trim());
+            });
+
+            try {
+                const response = await fetch('/update_schedule', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(newSchedule)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update schedule');
+                }
+            } catch (error) {
+                console.error('Error updating schedule:', error);
+            }
+        }
+
+        // Initialize on page load
+        initializeSchedule();
+        setTimeout(setupDropZones, 100);
+    </script>
+</body>
+</html>
