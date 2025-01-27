@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Weekly Schedule</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.1/Sortable.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body class="bg-gray-100 min-h-screen p-2 md:p-6">
@@ -39,6 +40,7 @@
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         let currentSchedule = {};
         let availableNames = [];
+        let sortables = [];
 
         async function initializeSchedule() {
             try {
@@ -57,6 +59,7 @@
                 currentSchedule = scheduleData.schedule;
                 renderSchedule();
                 renderNameList();
+                initializeSortable();
             } catch (error) {
                 console.error('Error initializing schedule:', error);
             }
@@ -81,12 +84,12 @@
 
                 const namesContainer = document.createElement('div');
                 namesContainer.id = `mobile-day-${day}`;
-                namesContainer.className = 'space-y-2';
+                namesContainer.className = 'space-y-2 sortable-container';
+                namesContainer.dataset.day = day;
 
                 const dayAssignments = currentSchedule[day] || [];
                 dayAssignments.forEach(name => {
-                    const nameEl = createNameElement(name);
-                    namesContainer.appendChild(nameEl);
+                    namesContainer.appendChild(createNameElement(name));
                 });
 
                 dayContainer.appendChild(dayHeader);
@@ -111,12 +114,12 @@
             days.forEach(day => {
                 const daySlot = document.createElement('div');
                 daySlot.id = `desktop-day-${day}`;
-                daySlot.className = 'border p-2 min-h-[100px] flex flex-col gap-2 rounded';
+                daySlot.className = 'border p-2 min-h-[100px] flex flex-col gap-2 rounded sortable-container';
+                daySlot.dataset.day = day;
                 
                 const dayAssignments = currentSchedule[day] || [];
                 dayAssignments.forEach(name => {
-                    const nameEl = createNameElement(name);
-                    daySlot.appendChild(nameEl);
+                    daySlot.appendChild(createNameElement(name));
                 });
 
                 scheduleGrid.appendChild(daySlot);
@@ -126,93 +129,75 @@
         function renderNameList() {
             const nameList = document.getElementById('nameList');
             nameList.innerHTML = '';
+            nameList.className = 'flex flex-wrap gap-2 sortable-container';
 
             availableNames.forEach(name => {
-                const nameEl = createNameElement(name);
-                nameList.appendChild(nameEl);
+                nameList.appendChild(createNameElement(name));
             });
         }
 
         function createNameElement(name) {
             const container = document.createElement('div');
-            container.className = 'flex items-center bg-blue-500 text-white p-2 rounded w-full md:w-auto';
+            container.className = 'flex items-center bg-blue-500 text-white p-2 rounded w-full md:w-auto sortable-item';
+            container.dataset.name = name;
 
             const nameSpan = document.createElement('span');
             nameSpan.textContent = name;
-            nameSpan.className = 'flex-grow cursor-move truncate';
+            nameSpan.className = 'flex-grow truncate';
 
             const removeBtn = document.createElement('button');
             removeBtn.innerHTML = '<i class="fas fa-times"></i>';
             removeBtn.className = 'ml-2 text-white hover:text-red-300';
-            removeBtn.onclick = () => removeName(container, name);
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                removeName(container, name);
+            };
 
             container.appendChild(nameSpan);
             container.appendChild(removeBtn);
-
-            container.draggable = true;
-            container.ondragstart = (e) => {
-                e.dataTransfer.setData('text/plain', name);
-                e.target.classList.add('opacity-50');
-            };
-            container.ondragend = (e) => {
-                e.target.classList.remove('opacity-50');
-            };
 
             return container;
         }
 
         function removeName(nameEl, name) {
-            const parentContainer = nameEl.parentNode;
-            parentContainer.removeChild(nameEl);
-
-            if (parentContainer.id.startsWith('day-') || 
-                parentContainer.id.startsWith('mobile-day-') || 
-                parentContainer.id.startsWith('desktop-day-')) {
-                const nameList = document.getElementById('nameList');
-                nameList.appendChild(createNameElement(name));
-                updateSchedule();
-            }
+            const nameList = document.getElementById('nameList');
+            nameEl.remove();
+            nameList.appendChild(createNameElement(name));
+            updateSchedule();
         }
 
-        function setupDropZones() {
-            const dropZones = document.querySelectorAll('[id^="mobile-day-"], [id^="desktop-day-"]');
-            dropZones.forEach(zone => {
-                zone.ondragover = (e) => {
-                    e.preventDefault();
-                    zone.classList.add('bg-blue-50');
-                };
-                zone.ondragleave = (e) => {
-                    zone.classList.remove('bg-blue-50');
-                };
-                zone.ondrop = (e) => {
-                    e.preventDefault();
-                    zone.classList.remove('bg-blue-50');
-                    
-                    const name = e.dataTransfer.getData('text/plain');
-                    const nameList = document.getElementById('nameList');
-                    const nameEl = Array.from(nameList.children)
-                        .find(el => el.textContent.includes(name));
+        function initializeSortable() {
+            // Destroy existing sortables
+            sortables.forEach(sortable => sortable.destroy());
+            sortables = [];
 
-                    if (nameEl) {
-                        nameList.removeChild(nameEl);
-                        zone.appendChild(createNameElement(name));
-                        updateSchedule();
-                    }
-                };
+            // Initialize all sortable containers
+            const containers = document.querySelectorAll('.sortable-container');
+            containers.forEach(container => {
+                const sortable = new Sortable(container, {
+                    group: 'shared',
+                    animation: 150,
+                    ghostClass: 'bg-blue-200',
+                    onEnd: updateSchedule
+                });
+                sortables.push(sortable);
             });
         }
 
         async function updateSchedule() {
             const newSchedule = {};
             days.forEach(day => {
-                const mobileSlot = document.getElementById(`mobile-day-${day}`);
-                const desktopSlot = document.getElementById(`desktop-day-${day}`);
-                const names = [
-                    ...Array.from(mobileSlot?.children || []),
-                    ...Array.from(desktopSlot?.children || [])
-                ].map(el => el.textContent.replace('×', '').trim());
+                const mobileSlot = document.querySelector(`#mobile-day-${day}`);
+                const desktopSlot = document.querySelector(`#desktop-day-${day}`);
+                const currentSlot = window.innerWidth >= 768 ? desktopSlot : mobileSlot;
                 
-                newSchedule[day] = [...new Set(names)]; // Remove duplicates
+                if (currentSlot) {
+                    newSchedule[day] = Array.from(currentSlot.children)
+                        .map(el => el.dataset.name)
+                        .filter(Boolean);
+                } else {
+                    newSchedule[day] = [];
+                }
             });
 
             try {
@@ -227,6 +212,8 @@
                 if (!response.ok) {
                     throw new Error('Failed to update schedule');
                 }
+
+                currentSchedule = newSchedule;
             } catch (error) {
                 console.error('Error updating schedule:', error);
             }
@@ -234,11 +221,10 @@
 
         // Initialize
         initializeSchedule();
-        setTimeout(setupDropZones, 100);
 
-        // Update drop zones when screen size changes
+        // Update sortable when screen size changes
         window.addEventListener('resize', () => {
-            setTimeout(setupDropZones, 100);
+            setTimeout(initializeSortable, 100);
         });
     </script>
 </body>
