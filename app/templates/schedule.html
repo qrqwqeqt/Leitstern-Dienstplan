@@ -7,20 +7,29 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
+<body class="bg-gray-100 min-h-screen p-2 md:p-6">
     <div class="container mx-auto">
-        <h1 class="text-3xl font-bold mb-6 text-center">Weekly Schedule</h1>
+        <h1 class="text-2xl md:text-3xl font-bold mb-4 md:mb-6 text-center">Weekly Schedule</h1>
         
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div id="availableNames" class="bg-white p-4 rounded shadow">
-                <h2 class="text-xl font-semibold mb-4">Available Names</h2>
-                <div id="nameList" class="space-y-2"></div>
+        <div class="grid grid-cols-1 gap-4">
+            <!-- Names Section -->
+            <div class="bg-white p-4 rounded shadow">
+                <h2 class="text-lg md:text-xl font-semibold mb-4">Available Names</h2>
+                <div id="nameList" class="flex flex-wrap gap-2"></div>
             </div>
 
-            <div class="md:col-span-2 bg-white p-4 rounded shadow">
-                <h2 class="text-xl font-semibold mb-4">Schedule</h2>
-                <div id="scheduleGrid" class="grid grid-cols-7 gap-2">
-                    <!-- Days will be dynamically populated -->
+            <!-- Schedule Section -->
+            <div class="bg-white p-4 rounded shadow overflow-x-auto">
+                <h2 class="text-lg md:text-xl font-semibold mb-4">Schedule</h2>
+                <!-- Mobile Schedule View -->
+                <div id="mobileSchedule" class="md:hidden space-y-4">
+                    <!-- Days will be populated here for mobile -->
+                </div>
+                <!-- Desktop Schedule View -->
+                <div id="desktopSchedule" class="hidden md:block">
+                    <div id="scheduleGrid" class="grid grid-cols-7 gap-2">
+                        <!-- Days will be populated here for desktop -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -31,7 +40,6 @@
         let currentSchedule = {};
         let availableNames = [];
 
-        // Fetch initial data
         async function initializeSchedule() {
             try {
                 const [namesResponse, scheduleResponse] = await Promise.all([
@@ -54,26 +62,57 @@
             }
         }
 
-        // Render schedule grid
         function renderSchedule() {
+            renderMobileSchedule();
+            renderDesktopSchedule();
+        }
+
+        function renderMobileSchedule() {
+            const mobileSchedule = document.getElementById('mobileSchedule');
+            mobileSchedule.innerHTML = '';
+
+            days.forEach(day => {
+                const dayContainer = document.createElement('div');
+                dayContainer.className = 'bg-gray-50 p-4 rounded';
+
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'font-bold text-lg mb-2 bg-blue-100 p-2 rounded';
+                dayHeader.textContent = day;
+
+                const namesContainer = document.createElement('div');
+                namesContainer.id = `mobile-day-${day}`;
+                namesContainer.className = 'space-y-2';
+
+                const dayAssignments = currentSchedule[day] || [];
+                dayAssignments.forEach(name => {
+                    const nameEl = createNameElement(name);
+                    namesContainer.appendChild(nameEl);
+                });
+
+                dayContainer.appendChild(dayHeader);
+                dayContainer.appendChild(namesContainer);
+                mobileSchedule.appendChild(dayContainer);
+            });
+        }
+
+        function renderDesktopSchedule() {
             const scheduleGrid = document.getElementById('scheduleGrid');
             scheduleGrid.innerHTML = '';
 
-            // Create headers
+            // Headers
             days.forEach(day => {
                 const header = document.createElement('div');
                 header.textContent = day;
-                header.className = 'font-bold text-center bg-blue-100 p-2';
+                header.className = 'font-bold text-center bg-blue-100 p-2 rounded';
                 scheduleGrid.appendChild(header);
             });
 
-            // Create day slots
+            // Day slots
             days.forEach(day => {
                 const daySlot = document.createElement('div');
-                daySlot.id = `day-${day}`;
-                daySlot.className = 'border p-2 min-h-[100px] flex flex-col gap-2';
+                daySlot.id = `desktop-day-${day}`;
+                daySlot.className = 'border p-2 min-h-[100px] flex flex-col gap-2 rounded';
                 
-                // Populate with existing assignments
                 const dayAssignments = currentSchedule[day] || [];
                 dayAssignments.forEach(name => {
                     const nameEl = createNameElement(name);
@@ -84,7 +123,6 @@
             });
         }
 
-        // Render available names list
         function renderNameList() {
             const nameList = document.getElementById('nameList');
             nameList.innerHTML = '';
@@ -95,14 +133,13 @@
             });
         }
 
-        // Create interactive name element
         function createNameElement(name) {
             const container = document.createElement('div');
-            container.className = 'flex items-center bg-blue-500 text-white p-2 rounded';
+            container.className = 'flex items-center bg-blue-500 text-white p-2 rounded w-full md:w-auto';
 
             const nameSpan = document.createElement('span');
             nameSpan.textContent = name;
-            nameSpan.className = 'flex-grow cursor-move';
+            nameSpan.className = 'flex-grow cursor-move truncate';
 
             const removeBtn = document.createElement('button');
             removeBtn.innerHTML = '<i class="fas fa-times"></i>';
@@ -112,7 +149,6 @@
             container.appendChild(nameSpan);
             container.appendChild(removeBtn);
 
-            // Make name draggable
             container.draggable = true;
             container.ondragstart = (e) => {
                 e.dataTransfer.setData('text/plain', name);
@@ -125,33 +161,32 @@
             return container;
         }
 
-        // Remove name from schedule or available list
         function removeName(nameEl, name) {
             const parentContainer = nameEl.parentNode;
             parentContainer.removeChild(nameEl);
 
-            // If removed from schedule, add to available names
-            if (parentContainer.id.startsWith('day-')) {
+            if (parentContainer.id.startsWith('day-') || 
+                parentContainer.id.startsWith('mobile-day-') || 
+                parentContainer.id.startsWith('desktop-day-')) {
                 const nameList = document.getElementById('nameList');
                 nameList.appendChild(createNameElement(name));
                 updateSchedule();
             }
         }
 
-        // Setup drop zones
         function setupDropZones() {
-            const daySlots = document.querySelectorAll('[id^="day-"]');
-            daySlots.forEach(slot => {
-                slot.ondragover = (e) => {
+            const dropZones = document.querySelectorAll('[id^="mobile-day-"], [id^="desktop-day-"]');
+            dropZones.forEach(zone => {
+                zone.ondragover = (e) => {
                     e.preventDefault();
-                    slot.classList.add('bg-blue-100');
+                    zone.classList.add('bg-blue-50');
                 };
-                slot.ondragleave = (e) => {
-                    slot.classList.remove('bg-blue-100');
+                zone.ondragleave = (e) => {
+                    zone.classList.remove('bg-blue-50');
                 };
-                slot.ondrop = (e) => {
+                zone.ondrop = (e) => {
                     e.preventDefault();
-                    slot.classList.remove('bg-blue-100');
+                    zone.classList.remove('bg-blue-50');
                     
                     const name = e.dataTransfer.getData('text/plain');
                     const nameList = document.getElementById('nameList');
@@ -160,20 +195,24 @@
 
                     if (nameEl) {
                         nameList.removeChild(nameEl);
-                        slot.appendChild(nameEl);
+                        zone.appendChild(createNameElement(name));
                         updateSchedule();
                     }
                 };
             });
         }
 
-        // Update schedule on backend
         async function updateSchedule() {
             const newSchedule = {};
             days.forEach(day => {
-                const daySlot = document.getElementById(`day-${day}`);
-                newSchedule[day] = Array.from(daySlot.children)
-                    .map(el => el.textContent.replace('×', '').trim());
+                const mobileSlot = document.getElementById(`mobile-day-${day}`);
+                const desktopSlot = document.getElementById(`desktop-day-${day}`);
+                const names = [
+                    ...Array.from(mobileSlot?.children || []),
+                    ...Array.from(desktopSlot?.children || [])
+                ].map(el => el.textContent.replace('×', '').trim());
+                
+                newSchedule[day] = [...new Set(names)]; // Remove duplicates
             });
 
             try {
@@ -193,9 +232,14 @@
             }
         }
 
-        // Initialize on page load
+        // Initialize
         initializeSchedule();
         setTimeout(setupDropZones, 100);
+
+        // Update drop zones when screen size changes
+        window.addEventListener('resize', () => {
+            setTimeout(setupDropZones, 100);
+        });
     </script>
 </body>
 </html>
