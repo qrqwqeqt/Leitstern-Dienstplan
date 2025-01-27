@@ -3,10 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Weekly Schedule</title>
+    <title>Leitstern Dienstplan</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.1/Sortable.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        @keyframes rainbow {
+            0% { color: red; }
+            16% { color: orange; }
+            33% { color: yellow; }
+            50% { color: green; }
+            66% { color: blue; }
+            83% { color: indigo; }
+            100% { color: violet; }
+        }
+        .rainbow-text {
+            animation: rainbow 10s linear infinite;
+        }
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #e5e7eb; /* Светло-серый */
+            text-align: center;
+            padding: 10px 0;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-2 md:p-6">
     <div class="container mx-auto max-w-7xl">  <!-- Увеличили max-width -->
@@ -63,6 +86,11 @@
         </div>
     </div>
 
+        <!-- Footer -->
+        <footer class="text-center mt-4 p-4 bg-gray-200">
+            <span>Created by <span class="rainbow-text font-bold">qrqwqeqt</span></span>
+        </footer>
+    </div>
     <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50">
         <!-- Toast message will be inserted here -->
