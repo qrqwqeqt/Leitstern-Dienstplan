@@ -1,115 +1,128 @@
+# scripts.py
+
 import json
 from datetime import datetime
-from .data import names
 import random
 import copy
+import os
+from .data import names
 
+CURRENT_SCHEDULE_FILE = 'app/current_schedule.json'
+SPECIAL_USERS = {'Sofia S.', 'Alihan'}
+MAX_ATTEMPTS = 100  # Максимальное количество попыток генерации
 
 def getNames():
     return dict(names)
 
-def addPoints(points_count, name):
-    """Add points to a specific person's total"""
-    if name in names:
-        names[name] += points_count
+def getCurrentSchedule():
+    try:
+        if os.path.exists(CURRENT_SCHEDULE_FILE):
+            with open(CURRENT_SCHEDULE_FILE, 'r') as f:
+                return json.load(f)
+        return None
+    except Exception as e:
+        print(f"Ошибка при чтении расписания: {e}")
+        return None
+
+def saveCurrentSchedule(schedule):
+    try:
+        with open(CURRENT_SCHEDULE_FILE, 'w') as f:
+            json.dump(schedule, f)
         return True
-    return False
+    except Exception as e:
+        print(f"Ошибка при сохранении расписания: {e}")
+        return False
 
-def saveData():
-    """Save current names data to a JSON file"""
-    with open('app/data_backup.json', 'w') as f:
-        json.dump(names, f)
+def get_available_users(used_users, all_users, require_three=False):
+    available = [user for user in all_users if user not in used_users]
+    if not require_three:
+        available = [user for user in available if user not in SPECIAL_USERS]
+    return available
 
-def sortData():
-    """Sort names by points in descending order"""
-    return dict(sorted(names.items(), key=lambda x: x[1], reverse=True))
+def assign_users_to_day(day, count, available_users, used_users):
+    if not available_users:
+        return []
+        
+    day_schedule = []
+    temp_available = available_users.copy()
+    special_user_added = False
+    
+    while len(day_schedule) < count and temp_available:
+        if not temp_available:  # Дополнительная проверка
+            break
+            
+        user = random.choice(temp_available)
+        is_special = user in SPECIAL_USERS
+        
+        if (not is_special) or (count == 3 and not special_user_added):
+            day_schedule.append(user)
+            used_users.add(user)
+            if is_special:
+                special_user_added = True
+        
+        temp_available.remove(user)
+    
+    return day_schedule
 
-import itertools
-from datetime import datetime
-
-
-def getPlan(names_data=None):
+def getPlan(names_data=None, attempt=0):
     """
-    Generate a weekly duty schedule considering point-based priority
-    
-    Priority rules:
-    - Weekends: 3 people if possible (+3 points)
-    - Weekdays (except Tuesday): 3 people if possible, else 2 (+2 points)
-    - Tuesday: Lowest priority, 2 people, optional 3rd if extra people available
+    Генерация нового расписания дежурств на неделю
+    attempt: текущая попытка генерации
     """
-    if names_data is None:
-        names_data = names.copy()
-    
-    # Create a deep copy to avoid modifying original data
-    names_copy = copy.deepcopy(names_data)
-    
-    # Sort people by current points (ascending)
-    sorted_people = sorted(names_copy.items(), key=lambda x: x[1])
-    
-    # Prepare days of week
-    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    schedule = {day: [] for day in days}
-    
-    # Helper to assign people
-    def assign_people(day, count, priority_points):
-        nonlocal sorted_people
+    if attempt >= MAX_ATTEMPTS:
+        raise Exception("Превышено максимальное количество попыток генерации расписания")
         
-        # Find available people not already scheduled
-        available = [
-            (name, points) for (name, points) in sorted_people 
-            if name not in [person for day_schedule in schedule.values() for person in day_schedule]
-        ]
+    try:
+        current_schedule = getCurrentSchedule()
+        if current_schedule and names_data is None:
+            return {'schedule': current_schedule}
         
-        # Select top people based on lowest points
-        selected = available[:count]
+        if names_data is None:
+            names_data = list(names.keys())
+        else:
+            names_data = list(names_data.keys())
         
-        # Update points and schedule
-        for name, points in selected:
-            names_copy[name] += priority_points
-            schedule[day].append(name)
+        days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        schedule = {day: [] for day in days}
+        used_users = set()
         
-        # Recompute sorted people after updates
-        sorted_people = sorted(names_copy.items(), key=lambda x: x[1])
+        # Выходные (по 3 человека)
+        for weekend_day in ['Saturday', 'Sunday']:
+            available_users = get_available_users(used_users, names_data, require_three=True)
+            if len(available_users) < 3:
+                return getPlan(names_data, attempt + 1)
+            weekend_schedule = assign_users_to_day(weekend_day, 3, available_users, used_users)
+            if len(weekend_schedule) < 3:
+                return getPlan(names_data, attempt + 1)
+            schedule[weekend_day] = weekend_schedule
         
-        return selected
-    
-    # Weekend scheduling (Saturday, Sunday)
-    assign_people('Saturday', 3, 3)
-    assign_people('Sunday', 3, 3)
-    
-    # Weekday scheduling
-    day_priorities = [
-        ('Monday', 3, 2),
-        ('Tuesday', 2, 2),  # Lowest priority
-        ('Wednesday', 3, 2),
-        ('Thursday', 3, 2),
-        ('Friday', 3, 2)
-    ]
-    
-    for day, ideal_count, points in day_priorities:
-        # Try to assign ideal number of people
-        remaining_people = len(sorted_people)
-        count = min(ideal_count, remaining_people)
-        assign_people(day, count, points)
-    
-    reordered_schedule = {
-        day: schedule[day] for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    }
-    return {
-        'schedule': reordered_schedule
-    }
-
-def distributePoints():
-    """Distribute points based on day of week"""
-    today = datetime.now().weekday()
-    
-    # Weekends (5, 6 are Saturday, Sunday)
-    if today in [5, 6]:
-        for name in names:
-            names[name] += 3
-    else:
-        # Weekdays
-        for name in names:
-            names[name] += 2
-    
-    return names
+        # Вторник (2 человека)
+        available_users = get_available_users(used_users, names_data, require_three=False)
+        if len(available_users) < 2:
+            return getPlan(names_data, attempt + 1)
+        tuesday_schedule = assign_users_to_day('Tuesday', 2, available_users, used_users)
+        if len(tuesday_schedule) < 2:
+            return getPlan(names_data, attempt + 1)
+        schedule['Tuesday'] = tuesday_schedule
+        
+        # Остальные будние дни
+        weekdays = ['Monday', 'Wednesday', 'Thursday', 'Friday']
+        random.shuffle(weekdays)
+        
+        for day in weekdays:
+            available_users = get_available_users(used_users, names_data, require_three=True)
+            target_count = 3 if len(available_users) >= 3 else 2
+            if len(available_users) < 2:
+                return getPlan(names_data, attempt + 1)
+            day_schedule = assign_users_to_day(day, target_count, available_users, used_users)
+            if len(day_schedule) < 2:
+                return getPlan(names_data, attempt + 1)
+            schedule[day] = day_schedule
+        
+        saveCurrentSchedule(schedule)
+        return {'schedule': schedule}
+        
+    except Exception as e:
+        if attempt < MAX_ATTEMPTS:
+            return getPlan(names_data, attempt + 1)
+        raise Exception(f"Ошибка генерации расписания: {str(e)}")

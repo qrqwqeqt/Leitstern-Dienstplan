@@ -9,39 +9,54 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body class="bg-gray-100 min-h-screen p-2 md:p-6">
-    <div class="container mx-auto">
-        <div class="flex justify-between items-center mb-4 md:mb-6">
-            <h1 class="text-2xl md:text-3xl font-bold">Weekly Schedule</h1>
-            <div class="space-x-2">
+    <div class="container mx-auto max-w-7xl">  <!-- Увеличили max-width -->
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-4 md:mb-6 gap-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Weekly Schedule</h1>
+            <div class="flex gap-2">
                 <button onclick="generateNewSchedule()" 
-                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition-colors">
-                    Erzeugen
+                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition-colors text-sm md:text-base">
+                    Generate New
                 </button>
                 <button onclick="saveSchedule()" 
-                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors">
-                    Speichern
+                        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors text-sm md:text-base">
+                    Save Changes
                 </button>
             </div>
         </div>
         
         <div class="grid grid-cols-1 gap-4">
             <!-- Names Section -->
-            <div class="bg-white p-4 rounded shadow">
-                <h2 class="text-lg md:text-xl font-semibold mb-4">Available Names</h2>
+            <div class="bg-white p-4 rounded-lg shadow-md">
+                <h2 class="text-lg md:text-xl font-semibold mb-4 text-gray-700">Available Names</h2>
                 <div id="nameList" class="flex flex-wrap gap-2"></div>
             </div>
 
             <!-- Schedule Section -->
-            <div class="bg-white p-4 rounded shadow overflow-x-auto">
-                <h2 class="text-lg md:text-xl font-semibold mb-4">Schedule</h2>
+            <div class="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
+                <h2 class="text-lg md:text-xl font-semibold mb-4 text-gray-700">Schedule</h2>
+                
                 <!-- Mobile Schedule View -->
-                <div id="mobileSchedule" class="md:hidden space-y-4">
+                <div id="mobileSchedule" class="md:hidden space-y-3">
                     <!-- Days will be populated here for mobile -->
                 </div>
+                
                 <!-- Desktop Schedule View -->
                 <div id="desktopSchedule" class="hidden md:block">
-                    <div id="scheduleGrid" class="grid grid-cols-7 gap-2">
-                        <!-- Days will be populated here for desktop -->
+                    <div id="scheduleGrid" class="grid grid-cols-7 gap-4">
+                        <!-- Headers -->
+                        <template id="dayHeaderTemplate">
+                            <div class="font-bold text-center bg-blue-100 p-3 rounded">
+                                <!-- Day name will be inserted here -->
+                            </div>
+                        </template>
+                        
+                        <!-- Slots -->
+                        <template id="daySlotTemplate">
+                            <div class="border border-gray-200 p-3 min-h-[150px] rounded sortable-container">
+                                <!-- Names will be inserted here -->
+                            </div>
+                        </template>
                     </div>
                 </div>
             </div>
@@ -49,16 +64,79 @@
     </div>
 
     <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg opacity-0 transition-opacity duration-300 pointer-events-none">
-        Schedule saved successfully
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50">
+        <!-- Toast message will be inserted here -->
     </div>
 
     <script>
+        async function showError(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'fixed bottom-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg opacity-100 transition-opacity duration-300 z-50';
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        async function generateNewSchedule() {
+            try {
+                if (hasUnsavedChanges) {
+                    if (!confirm('You have unsaved changes. Do you want to generate a new schedule anyway?')) {
+                        return;
+                    }
+                }
+
+                const response = await fetch('/generate_schedule', {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to generate schedule');
+                }
+
+                const newSchedule = await response.json();
+                currentSchedule = newSchedule.schedule;
+                hasUnsavedChanges = false;
+                
+                renderSchedule();
+                renderNameList();
+                initializeSortable();
+                
+                showToast('New schedule generated');
+            } catch (error) {
+                console.error('Error generating schedule:', error);
+                showError('Failed to generate schedule: ' + error.message);
+            }
+        }
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         let currentSchedule = {};
         let availableNames = [];
         let sortables = [];
         let hasUnsavedChanges = false;
+
+        function createNameElement(name) {
+            const container = document.createElement('div');
+            container.className = 'flex items-center bg-blue-500 text-white p-2 rounded text-sm md:text-base sortable-item';
+            container.dataset.name = name;
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = name;
+            nameSpan.className = 'flex-grow truncate';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+            removeBtn.className = 'ml-2 text-white hover:text-red-300';
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                removeName(container, name);
+            };
+
+            container.appendChild(nameSpan);
+            container.appendChild(removeBtn);
+            return container;
+        }
 
         async function initializeSchedule() {
             try {
@@ -236,7 +314,7 @@
                 console.error('Error updating schedule:', error);
             }
         }
-        
+
         async function updateSchedule() {
             const newSchedule = {};
             days.forEach(day => {
