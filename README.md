@@ -19,4 +19,4 @@ docker-compose build
 docker-compose up
 ```
 
-По ендпоінту /healthcheck можна перевірити роботу серверу. Також можна перейти на задеплоєний застосунок по ось цьому [посиланню](https://backend-kpi-1.onrender.com/healthcheck)
+По ендпоінту /healthcheck можна перевірити роботу серверу. Також можна перейти на задеплоєний застосунок по ось цьому [посиланню](https://backend-kpi-1.onrender.com/)
