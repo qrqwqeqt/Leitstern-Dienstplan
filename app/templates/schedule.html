@@ -198,29 +198,31 @@
             container.appendChild(removeBtn);
             return container;
         }
-
         async function initializeSchedule() {
-            try {
-                const [namesResponse, scheduleResponse] = await Promise.all([
-                    fetch('/names'),
-                    fetch('/schedule')
-                ]);
+        try {
+            const [namesResponse, scheduleResponse] = await Promise.all([
+                fetch('/names'),
+                fetch('/schedule')
+            ]);
 
-                const names = await namesResponse.json();
-                const scheduleData = await scheduleResponse.json();
+            const names = await namesResponse.json();
+            const scheduleData = await scheduleResponse.json();
 
-                availableNames = Object.keys(names).filter(name => 
-                    !Object.values(scheduleData.schedule).flat().includes(name)
-                );
+            // Создаем множество всех назначенных имен
+            const assignedNames = new Set(Object.values(scheduleData.schedule).flat());
+            
+            // Фильтруем имена, оставляя только те, которые не назначены ни на один день
+            availableNames = Object.keys(names).filter(name => !assignedNames.has(name));
 
-                currentSchedule = scheduleData.schedule;
-                renderSchedule();
-                renderNameList();
-                initializeSortable();
-            } catch (error) {
-                console.error('Error initializing schedule:', error);
-            }
+            currentSchedule = scheduleData.schedule;
+            renderSchedule();
+            renderNameList();
+            initializeSortable();
+        } catch (error) {
+            console.error('Error initializing schedule:', error);
+            showError('Failed to initialize schedule: ' + error.message);
         }
+    }
 
         function renderSchedule() {
             renderMobileSchedule();
