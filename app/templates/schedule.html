@@ -22,7 +22,6 @@
             animation: rainbow 10s linear infinite;
         }
 
-        /* Общие стили */
         body {
             display: flex;
             flex-direction: column;
@@ -32,23 +31,22 @@
 
         .content {
             flex: 1;
-            padding-bottom: 50px; /* Высота футера */
+            padding-bottom: 50px;
         }
 
         footer {
             background-color: #fffcfc;
-            color: white;
             text-align: center;
             height: 50px;
             display: flex;
             justify-content: center;
             align-items: center;
         }
+
         .footer-text {
-            color: #555; /* Темно-серый цвет для текста "Created by" */
+            color: #555;
         }
 
-        /* Для десктопов */
         @media (min-width: 768px) {
             footer {
                 position: fixed;
@@ -63,16 +61,36 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-2 md:p-6">
-    <div class="container mx-auto max-w-7xl">  <!-- Увеличили max-width -->
+    <!-- Password Modal -->
+    <div id="passwordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold mb-4" id="modalTitle">Enter Password</h3>
+            <input type="password" id="passwordInput" 
+                   class="w-full p-2 border border-gray-300 rounded mb-4 focus:outline-none focus:border-blue-500"
+                   placeholder="Enter password">
+            <div class="flex justify-end gap-2">
+                <button onclick="closePasswordModal()" 
+                        class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">
+                    Cancel
+                </button>
+                <button id="confirmPasswordButton"
+                        class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded">
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto max-w-7xl">
         <!-- Header Section -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-4 md:mb-6 gap-4">
             <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Weekly Schedule</h1>
             <div class="flex gap-2">
-                <button onclick="generateNewSchedule()" 
+                <button onclick="showPasswordModal('generate')" 
                         class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition-colors text-sm md:text-base">
                     Generate New
                 </button>
-                <button onclick="saveSchedule()" 
+                <button onclick="showPasswordModal('save')" 
                         class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition-colors text-sm md:text-base">
                     Save Changes
                 </button>
@@ -90,92 +108,60 @@
             <div class="bg-white p-4 rounded-lg shadow-md overflow-x-auto">
                 <h2 class="text-lg md:text-xl font-semibold mb-4 text-gray-700">Schedule</h2>
                 
-                <!-- Mobile Schedule View -->
-                <div id="mobileSchedule" class="md:hidden space-y-3">
-                    <!-- Days will be populated here for mobile -->
-                </div>
-                
-                <!-- Desktop Schedule View -->
+                <div id="mobileSchedule" class="md:hidden space-y-3"></div>
                 <div id="desktopSchedule" class="hidden md:block">
-                    <div id="scheduleGrid" class="grid grid-cols-7 gap-4">
-                        <!-- Headers -->
-                        <template id="dayHeaderTemplate">
-                            <div class="font-bold text-center bg-blue-100 p-3 rounded">
-                                <!-- Day name will be inserted here -->
-                            </div>
-                        </template>
-                        
-                        <!-- Slots -->
-                        <template id="daySlotTemplate">
-                            <div class="border border-gray-200 p-3 min-h-[150px] rounded sortable-container">
-                                <!-- Names will be inserted here -->
-                            </div>
-                        </template>
-                    </div>
+                    <div id="scheduleGrid" class="grid grid-cols-7 gap-4"></div>
                 </div>
             </div>
         </div>
     </div>
 
-        <!-- Footer -->
-        <footer class="text-center mt-4 p-4 bg-gray-200">
-            <span class="footer-text">Created by </span>
-            <span>&nbsp;</span>
-            <span class="rainbow-text"> qrqwqeqt</span>
-        </footer>
-    </div>
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50">
-        <!-- Toast message will be inserted here -->
-    </div>
+    <footer class="text-center mt-4 p-4 bg-gray-200">
+        <span class="footer-text">Created by </span>
+        <span>&nbsp;</span>
+        <span class="rainbow-text">qrqwqeqt</span>
+    </footer>
+
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50"></div>
 
     <script>
-        async function showError(message) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = 'fixed bottom-4 right-4 bg-red-600 text-white px-6 py-3 rounded-lg opacity-100 transition-opacity duration-300 z-50';
-            
-            setTimeout(() => {
-                toast.style.opacity = '0';
-            }, 3000);
-        }
-
-        async function generateNewSchedule() {
-            try {
-                if (hasUnsavedChanges) {
-                    if (!confirm('You have unsaved changes. Do you want to generate a new schedule anyway?')) {
-                        return;
-                    }
-                }
-
-                const response = await fetch('/generate_schedule', {
-                    method: 'POST'
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Failed to generate schedule');
-                }
-
-                const newSchedule = await response.json();
-                currentSchedule = newSchedule.schedule;
-                hasUnsavedChanges = false;
-                
-                renderSchedule();
-                renderNameList();
-                initializeSortable();
-                
-                showToast('New schedule generated');
-            } catch (error) {
-                console.error('Error generating schedule:', error);
-                showError('Failed to generate schedule: ' + error.message);
-            }
-        }
+        const CORRECT_PASSWORD = '123456';
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         let currentSchedule = {};
         let availableNames = [];
         let sortables = [];
         let hasUnsavedChanges = false;
+        let currentAction = null;
+
+        // Password handling functions
+        function showPasswordModal(action) {
+            currentAction = action;
+            const modal = document.getElementById('passwordModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const passwordInput = document.getElementById('passwordInput');
+            
+            modalTitle.textContent = `Enter Password to ${action === 'generate' ? 'Generate New Schedule' : 'Save Changes'}`;
+            modal.classList.replace('hidden', 'flex');
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').classList.replace('flex', 'hidden');
+            currentAction = null;
+        }
+
+        // UI helper functions
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg transition-opacity duration-300 ${
+                isError ? 'bg-red-600' : 'bg-gray-800'
+            } text-white`;
+            
+            toast.style.opacity = '1';
+            setTimeout(() => toast.style.opacity = '0', 3000);
+        }
 
         function createNameElement(name) {
             const container = document.createElement('div');
@@ -194,41 +180,11 @@
                 removeName(container, name);
             };
 
-            container.appendChild(nameSpan);
-            container.appendChild(removeBtn);
+            container.append(nameSpan, removeBtn);
             return container;
         }
-        async function initializeSchedule() {
-        try {
-            const [namesResponse, scheduleResponse] = await Promise.all([
-                fetch('/names'),
-                fetch('/schedule')
-            ]);
 
-            const names = await namesResponse.json();
-            const scheduleData = await scheduleResponse.json();
-
-            // Создаем множество всех назначенных имен
-            const assignedNames = new Set(Object.values(scheduleData.schedule).flat());
-            
-            // Фильтруем имена, оставляя только те, которые не назначены ни на один день
-            availableNames = Object.keys(names).filter(name => !assignedNames.has(name));
-
-            currentSchedule = scheduleData.schedule;
-            renderSchedule();
-            renderNameList();
-            initializeSortable();
-        } catch (error) {
-            console.error('Error initializing schedule:', error);
-            showError('Failed to initialize schedule: ' + error.message);
-        }
-    }
-
-        function renderSchedule() {
-            renderMobileSchedule();
-            renderDesktopSchedule();
-        }
-
+        // Schedule rendering functions
         function renderMobileSchedule() {
             const mobileSchedule = document.getElementById('mobileSchedule');
             mobileSchedule.innerHTML = '';
@@ -251,8 +207,7 @@
                     namesContainer.appendChild(createNameElement(name));
                 });
 
-                dayContainer.appendChild(dayHeader);
-                dayContainer.appendChild(namesContainer);
+                dayContainer.append(dayHeader, namesContainer);
                 mobileSchedule.appendChild(dayContainer);
             });
         }
@@ -261,7 +216,6 @@
             const scheduleGrid = document.getElementById('scheduleGrid');
             scheduleGrid.innerHTML = '';
 
-            // Headers
             days.forEach(day => {
                 const header = document.createElement('div');
                 header.textContent = day;
@@ -269,15 +223,13 @@
                 scheduleGrid.appendChild(header);
             });
 
-            // Day slots
             days.forEach(day => {
                 const daySlot = document.createElement('div');
                 daySlot.id = `desktop-day-${day}`;
                 daySlot.className = 'border p-2 min-h-[100px] flex flex-col gap-2 rounded sortable-container';
                 daySlot.dataset.day = day;
                 
-                const dayAssignments = currentSchedule[day] || [];
-                dayAssignments.forEach(name => {
+                (currentSchedule[day] || []).forEach(name => {
                     daySlot.appendChild(createNameElement(name));
                 });
 
@@ -285,105 +237,45 @@
             });
         }
 
+        function renderSchedule() {
+            renderMobileSchedule();
+            renderDesktopSchedule();
+        }
+
         function renderNameList() {
             const nameList = document.getElementById('nameList');
             nameList.innerHTML = '';
             nameList.className = 'flex flex-wrap gap-2 sortable-container';
-
-            availableNames.forEach(name => {
-                nameList.appendChild(createNameElement(name));
-            });
+            availableNames.forEach(name => nameList.appendChild(createNameElement(name)));
         }
 
-        function createNameElement(name) {
-            const container = document.createElement('div');
-            container.className = 'flex items-center bg-blue-500 text-white p-2 rounded w-full md:w-auto sortable-item';
-            container.dataset.name = name;
-
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = name;
-            nameSpan.className = 'flex-grow truncate';
-
-            const removeBtn = document.createElement('button');
-            removeBtn.innerHTML = '<i class="fas fa-times"></i>';
-            removeBtn.className = 'ml-2 text-white hover:text-red-300';
-            removeBtn.onclick = (e) => {
-                e.stopPropagation();
-                removeName(container, name);
-            };
-
-            container.appendChild(nameSpan);
-            container.appendChild(removeBtn);
-
-            return container;
-        }
-
+        // Schedule manipulation functions
         function removeName(nameEl, name) {
-            const nameList = document.getElementById('nameList');
             nameEl.remove();
-            nameList.appendChild(createNameElement(name));
+            document.getElementById('nameList').appendChild(createNameElement(name));
             updateSchedule();
         }
 
         function initializeSortable() {
-            // Destroy existing sortables
             sortables.forEach(sortable => sortable.destroy());
             sortables = [];
 
-            // Initialize all sortable containers
-            const containers = document.querySelectorAll('.sortable-container');
-            containers.forEach(container => {
-                const sortable = new Sortable(container, {
+            document.querySelectorAll('.sortable-container').forEach(container => {
+                sortables.push(new Sortable(container, {
                     group: 'shared',
                     animation: 150,
                     ghostClass: 'bg-blue-200',
                     onEnd: updateSchedule
-                });
-                sortables.push(sortable);
+                }));
             });
         }
 
         async function updateSchedule() {
             const newSchedule = {};
             days.forEach(day => {
-                const mobileSlot = document.querySelector(`#mobile-day-${day}`);
-                const desktopSlot = document.querySelector(`#desktop-day-${day}`);
-                const currentSlot = window.innerWidth >= 768 ? desktopSlot : mobileSlot;
-                
-                if (currentSlot) {
-                    newSchedule[day] = Array.from(currentSlot.children)
-                        .map(el => el.dataset.name)
-                        .filter(Boolean);
-                } else {
-                    newSchedule[day] = [];
-                }
-            });
-
-            try {
-                const response = await fetch('/update_schedule', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(newSchedule)
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to update schedule');
-                }
-
-                currentSchedule = newSchedule;
-            } catch (error) {
-                console.error('Error updating schedule:', error);
-            }
-        }
-
-        async function updateSchedule() {
-            const newSchedule = {};
-            days.forEach(day => {
-                const mobileSlot = document.querySelector(`#mobile-day-${day}`);
-                const desktopSlot = document.querySelector(`#desktop-day-${day}`);
-                const currentSlot = window.innerWidth >= 768 ? desktopSlot : mobileSlot;
+                const currentSlot = window.innerWidth >= 768 
+                    ? document.querySelector(`#desktop-day-${day}`)
+                    : document.querySelector(`#mobile-day-${day}`);
                 
                 if (currentSlot) {
                     newSchedule[day] = Array.from(currentSlot.children)
@@ -402,15 +294,11 @@
             try {
                 const response = await fetch('/update_schedule', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(currentSchedule)
                 });
 
-                if (!response.ok) {
-                    throw new Error('Failed to save schedule');
-                }
+                if (!response.ok) throw new Error('Failed to save schedule');
 
                 hasUnsavedChanges = false;
                 showToast('Schedule saved successfully');
@@ -422,19 +310,12 @@
 
         async function generateNewSchedule() {
             try {
-                if (hasUnsavedChanges) {
-                    if (!confirm('You have unsaved changes. Do you want to generate a new schedule anyway?')) {
-                        return;
-                    }
+                if (hasUnsavedChanges && !confirm('You have unsaved changes. Do you want to generate a new schedule anyway?')) {
+                    return;
                 }
 
-                const response = await fetch('/generate_schedule', {
-                    method: 'POST'
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to generate schedule');
-                }
+                const response = await fetch('/generate_schedule', { method: 'POST' });
+                if (!response.ok) throw new Error('Failed to generate schedule');
 
                 const newSchedule = await response.json();
                 currentSchedule = newSchedule.schedule;
@@ -443,7 +324,6 @@
                 renderSchedule();
                 renderNameList();
                 initializeSortable();
-                
                 showToast('New schedule generated');
             } catch (error) {
                 console.error('Error generating schedule:', error);
@@ -451,29 +331,56 @@
             }
         }
 
-        function showToast(message, isError = false) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg transition-opacity duration-300 ${
-                isError ? 'bg-red-600' : 'bg-gray-800'
-            } text-white`;
-            
-            // Show toast
-            toast.style.opacity = '1';
-            
-            // Hide after 3 seconds
-            setTimeout(() => {
-                toast.style.opacity = '0';
-            }, 3000);
+        async function initializeSchedule() {
+            try {
+                const [namesResponse, scheduleResponse] = await Promise.all([
+                    fetch('/names'),
+                    fetch('/schedule')
+                ]);
+
+                const names = await namesResponse.json();
+                const scheduleData = await scheduleResponse.json();
+                const assignedNames = new Set(Object.values(scheduleData.schedule).flat());
+                availableNames = Object.keys(names).filter(name => !assignedNames.has(name));
+                currentSchedule = scheduleData.schedule;
+                
+                renderSchedule();
+                renderNameList();
+                initializeSortable();
+            } catch (error) {
+                console.error('Error initializing schedule:', error);
+                showToast('Failed to initialize schedule', true);
+            }
         }
 
-        // Initialize
-        initializeSchedule();
+        // Event Listeners
+        document.getElementById('passwordInput').addEventListener('keyup', e => {
+            if (e.key === 'Enter') {
+                document.getElementById('confirmPasswordButton').click();
+            }
+        });
 
-        // Update sortable when screen size changes
+        document.getElementById('confirmPasswordButton').addEventListener('click', () => {
+            const password = document.getElementById('passwordInput').value;
+            
+            if (password === CORRECT_PASSWORD) {
+                if (currentAction === 'generate') {
+                    generateNewSchedule();
+                } else if (currentAction === 'save') {
+                    saveSchedule();
+                }
+                closePasswordModal();
+            } else {
+                showToast('Incorrect password', true);
+            }
+        });
+
         window.addEventListener('resize', () => {
             setTimeout(initializeSortable, 100);
         });
+
+        // Initialize the application
+        initializeSchedule();
     </script>
 </body>
 </html>
