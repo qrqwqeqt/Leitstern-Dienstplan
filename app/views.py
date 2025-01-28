@@ -1,8 +1,24 @@
-from flask import jsonify, request, render_template
+from flask import jsonify, request, render_template, current_app
+import logging
+from datetime import datetime
 from . import app
 from .scripts import getNames, getPlan, getCurrentSchedule, saveCurrentSchedule
 from .data import names
 
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat(),
+        'service': 'schedule-app'
+    }), 200
+    
+    
 @app.route('/', methods=['GET'])
 def index():
     return render_template('schedule.html')
