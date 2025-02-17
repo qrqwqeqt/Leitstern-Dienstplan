@@ -84,7 +84,10 @@
     <div class="container mx-auto max-w-7xl">
         <!-- Header Section -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-4 md:mb-6 gap-4">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Weekly Schedule</h1>
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Weekly Schedule</h1>
+                <div id="dateRange" class="text-sm text-gray-600 mt-1"></div>
+            </div>
             <div class="flex gap-2">
                 <button onclick="showPasswordModal('generate')" 
                         class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded transition-colors text-sm md:text-base">
@@ -125,13 +128,34 @@
     <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg opacity-0 transition-opacity duration-300 pointer-events-none z-50"></div>
 
     <script>
-        const CORRECT_PASSWORD = 'zasranec';
+        const CORRECT_PASSWORD = '1';
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         let currentSchedule = {};
         let availableNames = [];
         let sortables = [];
         let hasUnsavedChanges = false;
         let currentAction = null;
+        let scheduleStartDate = null;
+        let scheduleEndDate = null;
+
+        // Helper for formatting dates
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}.${month}.${year}`;
+        }
+
+        // Update date range display
+        function updateDateRangeDisplay() {
+            const dateRangeElement = document.getElementById('dateRange');
+            if (scheduleStartDate && scheduleEndDate) {
+                dateRangeElement.textContent = `Valid for: ${formatDate(scheduleStartDate)} - ${formatDate(scheduleEndDate)}`;
+            } else {
+                dateRangeElement.textContent = "";
+            }
+        }
 
         // Password handling functions
         function showPasswordModal(action) {
@@ -240,6 +264,7 @@
         function renderSchedule() {
             renderMobileSchedule();
             renderDesktopSchedule();
+            updateDateRangeDisplay();
         }
 
         function renderNameList() {
@@ -299,6 +324,14 @@
                 });
 
                 if (!response.ok) throw new Error('Failed to save schedule');
+                
+                const result = await response.json();
+                
+                if (result.start_date && result.end_date) {
+                    scheduleStartDate = result.start_date;
+                    scheduleEndDate = result.end_date;
+                    updateDateRangeDisplay();
+                }
 
                 hasUnsavedChanges = false;
                 showToast('Schedule saved successfully');
@@ -317,13 +350,17 @@
                 const response = await fetch('/generate_schedule', { method: 'POST' });
                 if (!response.ok) throw new Error('Failed to generate schedule');
 
-                const newSchedule = await response.json();
-                currentSchedule = newSchedule.schedule;
+                const newScheduleData = await response.json();
+                currentSchedule = newScheduleData.schedule;
+                scheduleStartDate = newScheduleData.start_date;
+                scheduleEndDate = newScheduleData.end_date;
+                
                 hasUnsavedChanges = false;
                 
                 renderSchedule();
                 renderNameList();
                 initializeSortable();
+                updateDateRangeDisplay();
                 showToast('New schedule generated');
             } catch (error) {
                 console.error('Error generating schedule:', error);
@@ -340,9 +377,18 @@
 
                 const names = await namesResponse.json();
                 const scheduleData = await scheduleResponse.json();
-                const assignedNames = new Set(Object.values(scheduleData.schedule).flat());
+                
+                // Handle the new structure of the schedule data
+                if (scheduleData.schedule) {
+                    currentSchedule = scheduleData.schedule;
+                    scheduleStartDate = scheduleData.start_date;
+                    scheduleEndDate = scheduleData.end_date;
+                } else {
+                    currentSchedule = scheduleData;
+                }
+                
+                const assignedNames = new Set(Object.values(currentSchedule).flat());
                 availableNames = Object.keys(names).filter(name => !assignedNames.has(name));
-                currentSchedule = scheduleData.schedule;
                 
                 renderSchedule();
                 renderNameList();
