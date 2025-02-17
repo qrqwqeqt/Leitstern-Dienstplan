@@ -1,1 +1,38 @@
-{"schedule": {}, "start_date": "2025-02-17", "end_date": "2025-02-23T00:00:00"}
+{
+  "schedule": {
+    "Monday": [
+      "Arsenii",
+      "Olena",
+      "Serhii"
+    ],
+    "Tuesday": [
+      "Ivan",
+      "Illia L."
+    ],
+    "Wednesday": [
+      "Alikhan",
+      "Sofia K.",
+      "Ilona"
+    ],
+    "Thursday": [
+      "Illia K.",
+      "Anastasiia K."
+    ],
+    "Friday": [
+      "Oleksii",
+      "Herman"
+    ],
+    "Saturday": [
+      "Kyrylo",
+      "Anastasiia P.",
+      "Artur"
+    ],
+    "Sunday": [
+      "Sofia S.",
+      "Yaroslav",
+      "Maksym"
+    ]
+  },
+  "start_date": "2025-02-17",
+  "end_date": "2025-02-23T00:00:00"
+}
