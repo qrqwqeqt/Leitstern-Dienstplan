@@ -38,6 +38,9 @@ def update_schedule():
         if not data:
             return jsonify({"status": "error", "message": "Отсутствуют данные для обновления"}), 400
             
+        # Получаем текущее расписание для сохранения его дат
+        current_schedule = getCurrentSchedule()
+        
         if isinstance(data, dict) and "schedule" in data:
             new_schedule = data["schedule"]
         else:
@@ -60,24 +63,42 @@ def update_schedule():
                 if name in names:  # Проверяем, есть ли имя в словаре
                     names[name] += points
         
-        # Calculate the start date (next Monday)
-        today = datetime.now().date()
-        days_to_monday = (0 - today.weekday()) % 7
-        if days_to_monday == 0:  # If today is Monday
-            start_date = today.isoformat()
+        # Определяем, какую дату использовать
+        if current_schedule and "start_date" in current_schedule:
+            start_date = current_schedule["start_date"]
+            # Проверяем, не истёк ли период текущего расписания
+            current_end_date = current_schedule.get("end_date")
+            if current_end_date:
+                # Если сегодня позже конечной даты текущего расписания, 
+                # то переходим на следующую неделю
+                today = datetime.now().date()
+                if datetime.fromisoformat(current_end_date).date() < today:
+                    # Найти следующий понедельник
+                    days_until_monday = (7 - today.weekday()) % 7
+                    if days_until_monday == 0:  # сегодня понедельник
+                        start_date = today.isoformat()
+                    else:
+                        start_date = (today + timedelta(days=days_until_monday)).isoformat()
         else:
-            start_date = (today + timedelta(days=days_to_monday)).isoformat()
+            # Если нет текущего расписания, используем следующий понедельник
+            today = datetime.now().date()
+            days_until_monday = (7 - today.weekday()) % 7
+            if days_until_monday == 0:  # сегодня понедельник
+                start_date = today.isoformat()
+            else:
+                start_date = (today + timedelta(days=days_until_monday)).isoformat()
         
-        logger.info(f"Сохраняем расписание: {new_schedule}")
+        logger.info(f"Сохраняем расписание: {new_schedule} с начальной датой {start_date}")
         
         # Сохраняем новое расписание с датами
         if saveCurrentSchedule(new_schedule, start_date):
             logger.info("Расписание успешно сохранено")
+            end_date = (datetime.fromisoformat(start_date) + timedelta(days=6)).isoformat()
             return jsonify({
                 "status": "success", 
                 "message": "Schedule saved successfully",
                 "start_date": start_date,
-                "end_date": (datetime.fromisoformat(start_date) + timedelta(days=6)).isoformat()
+                "end_date": end_date
             }), 200
         else:
             logger.error("Не удалось сохранить расписание")
@@ -86,7 +107,9 @@ def update_schedule():
     except Exception as e:
         logger.exception(f"Ошибка при обновлении расписания: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
-
+    
+    
+    
 @app.route('/generate_schedule', methods=['POST'])
 def generate_schedule():
     try:
