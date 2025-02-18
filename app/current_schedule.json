@@ -1,26 +1,27 @@
 {
   "schedule": {
     "Monday": [
-      "Arsenii",
-      "Olena",
-      "Serhii"
+      "Sofia S.",
+      "Illia L."
     ],
     "Tuesday": [
-      "Ivan",
-      "Illia L."
+      "Arsenii",
+      "Ivan K.",
+      "Olena"
     ],
     "Wednesday": [
       "Alikhan",
-      "Sofia K.",
+      "Illia K.",
       "Ilona"
     ],
     "Thursday": [
-      "Illia K.",
+      "Sofia K.",
       "Anastasiia K."
     ],
     "Friday": [
       "Oleksii",
-      "Herman"
+      "Herman",
+      "Ivan P."
     ],
     "Saturday": [
       "Kyrylo",
@@ -28,9 +29,9 @@
       "Artur"
     ],
     "Sunday": [
-      "Sofia S.",
       "Yaroslav",
-      "Maksym"
+      "Maksym",
+      "Serhii"
     ]
   },
   "start_date": "2025-02-17",

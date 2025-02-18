@@ -166,13 +166,16 @@ def getPlan(names_data=None, attempt=0):
         if not schedule:
             raise Exception("Не удалось сгенерировать расписание")
         
-        # Calculate the start date (next Monday)
+        # Calculate the start date based on the current date
         today = datetime.now().date()
-        days_to_monday = (0 - today.weekday()) % 7
-        if days_to_monday == 0:  # If today is Monday
+        
+        # Если сегодня понедельник, начинаем с сегодня, иначе берем следующий понедельник
+        if today.weekday() == 0:  # 0 = Monday
             start_date = today.isoformat()
         else:
-            start_date = (today + timedelta(days=days_to_monday)).isoformat()
+            # Находим следующий понедельник
+            days_until_monday = (7 - today.weekday()) % 7
+            start_date = (today + timedelta(days=days_until_monday)).isoformat()
         
         saveCurrentSchedule(schedule, start_date)
         
