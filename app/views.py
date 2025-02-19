@@ -1,4 +1,5 @@
-from flask import jsonify, request, render_template, current_app
+from flask import jsonify, request, render_template, send_from_directory
+import os
 import logging
 from datetime import datetime, timedelta
 from . import app
@@ -108,7 +109,10 @@ def update_schedule():
         logger.exception(f"Ошибка при обновлении расписания: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
     
-    
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
     
 @app.route('/generate_schedule', methods=['POST'])
 def generate_schedule():
