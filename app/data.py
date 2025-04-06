@@ -17,5 +17,6 @@ names = {
     "Oleksii": 0,
     "Sofia S.": 0,
     "Alikhan": 0,
-    "Ivan P.": 0
+    "Ivan D.": 0,
+    "Timur": 0
 }
