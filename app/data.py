@@ -4,8 +4,6 @@ names = {
     "Herman": 0,
     "Kyrylo": 0,
     "Artur": 0,
-    "Illia L.": 0,
-    "Serhii": 0,
     "Olena": 0,
     "Anastasiia P.": 0,
     "Anastasiia K.": 0,
